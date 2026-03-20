@@ -7,6 +7,7 @@ const App = (() => {
         els.apiKeyInput = $('api-key-input');
         els.saveKeyBtn = $('save-key-btn');
         els.clearKeyBtn = $('clear-key-btn');
+        els.testKeyBtn = $('test-key-btn');
         els.keyStatus = $('key-status');
         els.warningThreshold = $('warning-threshold');
         els.killThreshold = $('kill-threshold');
@@ -38,6 +39,7 @@ const App = (() => {
             els.apiKeyInput.disabled = true;
             els.saveKeyBtn.style.display = 'none';
             els.clearKeyBtn.style.display = '';
+            els.testKeyBtn.style.display = '';
             els.analyzeBtn.disabled = false;
             setStatus(els.keyStatus, 'Key saved.', 'success');
         }
@@ -57,8 +59,22 @@ const App = (() => {
             els.apiKeyInput.disabled = false;
             els.saveKeyBtn.style.display = '';
             els.clearKeyBtn.style.display = 'none';
+            els.testKeyBtn.style.display = 'none';
             els.analyzeBtn.disabled = true;
             setStatus(els.keyStatus, 'Key cleared.', '');
+        });
+
+        els.testKeyBtn.addEventListener('click', async () => {
+            els.testKeyBtn.disabled = true;
+            setStatus(els.keyStatus, 'Testing connection...', 'loading');
+            try {
+                const result = await ApiKey.testConnection();
+                setStatus(els.keyStatus, `Connected — model: ${result.model}`, 'success');
+            } catch (e) {
+                setStatus(els.keyStatus, `Connection failed: ${e.message}`, 'error');
+            } finally {
+                els.testKeyBtn.disabled = false;
+            }
         });
 
         els.apiKeyInput.addEventListener('input', () => {

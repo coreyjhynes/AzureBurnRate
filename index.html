@@ -23,6 +23,7 @@
                 <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
                 <button id="save-key-btn" class="btn primary">Save Key</button>
                 <button id="clear-key-btn" class="btn secondary" style="display:none;">Clear Key</button>
+                <button id="test-key-btn" class="btn secondary" style="display:none;">Test Connection</button>
             </div>
             <div id="key-status" class="status-msg"></div>
         </section>
@@ -114,6 +115,7 @@
 
     <footer>
         <p>Azure Burn Rate Estimator &mdash; Pricing via <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a></p>
+        <p id="version-info">v1.0.0 &middot; Build 1</p>
     </footer>
 
     <script src="js/apiKey.js"></script>

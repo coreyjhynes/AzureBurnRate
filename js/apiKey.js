@@ -48,5 +48,33 @@ const ApiKey = (() => {
         return data.content[0].text;
     }
 
-    return { get, save, clear, isSet, callClaude };
+    async function testConnection() {
+        const key = get();
+        if (!key) throw new Error('No API key configured');
+
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-6-20250514',
+                max_tokens: 16,
+                messages: [{ role: 'user', content: 'Reply with only: OK' }]
+            })
+        });
+
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error?.message || `API error ${res.status}`);
+        }
+
+        const data = await res.json();
+        return { success: true, model: data.model, reply: data.content[0].text };
+    }
+
+    return { get, save, clear, isSet, callClaude, testConnection };
 })();
