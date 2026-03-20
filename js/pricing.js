@@ -23,7 +23,7 @@ const Pricing = (() => {
         const data = await res.json();
         const items = data.Items || [];
 
-        // Find best match — prefer per-hour retail price
+        // Find best match - prefer per-hour retail price
         let hourlyRate = 0;
         if (items.length > 0) {
             // Look for a direct hourly rate first
@@ -36,7 +36,7 @@ const Pricing = (() => {
                 if (monthItem) {
                     hourlyRate = monthItem.retailPrice / 730;
                 } else if (items[0]) {
-                    // Fallback — use first item as-is with note
+                    // Fallback - use first item as-is with note
                     hourlyRate = items[0].retailPrice;
                 }
             }
@@ -60,7 +60,7 @@ const Pricing = (() => {
         return results;
     }
 
-    // Bulk lookup via Claude when Azure API returns 0 — ask Claude for estimates
+    // Bulk lookup via Claude when Azure API returns 0 - ask Claude for estimates
     async function estimateMissing(resources) {
         const missing = resources.filter(r => r.hourlyRate === 0);
         if (missing.length === 0) return resources;

@@ -35,7 +35,7 @@ const App = (() => {
     // --- API Key ---
     function initApiKey() {
         if (ApiKey.isSet()) {
-            els.apiKeyInput.value = '••••••••••••';
+            els.apiKeyInput.value = '************';
             els.apiKeyInput.disabled = true;
             els.saveKeyBtn.style.display = 'none';
             els.clearKeyBtn.style.display = '';
@@ -69,7 +69,7 @@ const App = (() => {
             setStatus(els.keyStatus, 'Testing connection...', 'loading');
             try {
                 const result = await ApiKey.testConnection();
-                setStatus(els.keyStatus, `Connected — model: ${result.model}`, 'success');
+                setStatus(els.keyStatus, `Connected - model: ${result.model}`, 'success');
             } catch (e) {
                 setStatus(els.keyStatus, `Connection failed: ${e.message}`, 'error');
             } finally {

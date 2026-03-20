@@ -54,7 +54,7 @@ const ApiKey = (() => {
             };
 
             xhr.onerror = function () {
-                reject(new Error('Network error — check your connection and CORS'));
+                reject(new Error('Network error - check your connection and CORS'));
             };
 
             xhr.send(JSON.stringify(body));
