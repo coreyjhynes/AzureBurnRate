@@ -2,12 +2,15 @@ const ApiKey = (() => {
     const STORAGE_KEY = 'azure-burn-rate-api-key';
 
     function sanitize(key) {
-        // Strip non-ASCII characters (fetch headers require ISO-8859-1)
-        return key.replace(/[^\x20-\x7E]/g, '').trim();
+        // Keep only printable ASCII (0x21-0x7E) — no spaces, no control chars, no unicode
+        return String(key || '').split('').filter(c => {
+            const code = c.charCodeAt(0);
+            return code >= 0x21 && code <= 0x7E;
+        }).join('');
     }
 
     function get() {
-        return sanitize(localStorage.getItem(STORAGE_KEY) || '');
+        return sanitize(localStorage.getItem(STORAGE_KEY));
     }
 
     function save(key) {
@@ -25,60 +28,47 @@ const ApiKey = (() => {
         return !!get();
     }
 
-    async function callClaude(systemPrompt, userMessage) {
+    async function apiFetch(body) {
         const key = get();
         if (!key) throw new Error('No API key configured');
 
+        // Build headers with a plain Headers object to catch encoding issues early
+        const headers = new Headers();
+        headers.set('Content-Type', 'application/json');
+        headers.set('anthropic-version', '2023-06-01');
+        headers.set('anthropic-dangerous-direct-browser-access', 'true');
+        headers.set('x-api-key', key);
+
         const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': key,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-6-20250514',
-                max_tokens: 4096,
-                system: systemPrompt,
-                messages: [{ role: 'user', content: userMessage }]
-            })
+            headers,
+            body: JSON.stringify(body)
         });
 
         if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body.error?.message || `API error ${res.status}`);
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || 'API error ' + res.status);
         }
 
-        const data = await res.json();
+        return res.json();
+    }
+
+    async function callClaude(systemPrompt, userMessage) {
+        const data = await apiFetch({
+            model: 'claude-sonnet-4-6-20250514',
+            max_tokens: 4096,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userMessage }]
+        });
         return data.content[0].text;
     }
 
     async function testConnection() {
-        const key = get();
-        if (!key) throw new Error('No API key configured');
-
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': key,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-6-20250514',
-                max_tokens: 16,
-                messages: [{ role: 'user', content: 'Reply with only: OK' }]
-            })
+        const data = await apiFetch({
+            model: 'claude-sonnet-4-6-20250514',
+            max_tokens: 16,
+            messages: [{ role: 'user', content: 'Reply with only: OK' }]
         });
-
-        if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body.error?.message || `API error ${res.status}`);
-        }
-
-        const data = await res.json();
         return { success: true, model: data.model, reply: data.content[0].text };
     }
 
