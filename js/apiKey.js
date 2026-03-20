@@ -1,83 +1,101 @@
 const ApiKey = (() => {
-    const STORAGE_KEY = 'azure-burn-rate-api-key';
+    const STORAGE_KEY = 'azure-burn-rate-settings';
 
-    function sanitize(key) {
-        return String(key || '').split('').filter(c => {
-            const code = c.charCodeAt(0);
-            return code >= 0x21 && code <= 0x7E;
-        }).join('');
+    function _loadSettings() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {
+            console.error('Failed to load settings:', e);
+        }
+        return { apiKey: '' };
+    }
+
+    function _saveSettings(s) {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+        } catch (e) {
+            console.error('Failed to save settings:', e);
+        }
     }
 
     function get() {
-        return sanitize(localStorage.getItem(STORAGE_KEY));
+        return _loadSettings().apiKey || '';
     }
 
     function save(key) {
-        key = sanitize(key);
+        key = (key || '').trim();
         if (!key) throw new Error('API key cannot be empty');
-        if (!/^sk-ant-/.test(key)) throw new Error('Key must start with sk-ant-');
-        localStorage.setItem(STORAGE_KEY, key);
+        const s = _loadSettings();
+        s.apiKey = key;
+        _saveSettings(s);
     }
 
     function clear() {
-        localStorage.removeItem(STORAGE_KEY);
+        const s = _loadSettings();
+        s.apiKey = '';
+        _saveSettings(s);
     }
 
     function isSet() {
         return !!get();
     }
 
-    // Use XMLHttpRequest to avoid fetch's strict ISO-8859-1 header validation
-    function apiFetch(body) {
+    function _getProviderConfig() {
         const key = get();
-        if (!key) return Promise.reject(new Error('No API key configured'));
-
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://api.anthropic.com/v1/messages');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('anthropic-version', '2023-06-01');
-            xhr.setRequestHeader('anthropic-dangerous-direct-browser-access', 'true');
-            xhr.setRequestHeader('x-api-key', key);
-
-            xhr.onload = function () {
-                try {
-                    const data = JSON.parse(xhr.responseText);
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve(data);
-                    } else {
-                        reject(new Error(data.error?.message || 'API error ' + xhr.status));
-                    }
-                } catch (e) {
-                    reject(new Error('Failed to parse API response'));
-                }
-            };
-
-            xhr.onerror = function () {
-                reject(new Error('Network error - check your connection and CORS'));
-            };
-
-            xhr.send(JSON.stringify(body));
-        });
+        if (!key) return null;
+        return {
+            url: 'https://api.anthropic.com/v1/messages',
+            model: 'claude-sonnet-4-20250514',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            }
+        };
     }
 
     async function callClaude(systemPrompt, userMessage) {
-        const data = await apiFetch({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 4096,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userMessage }]
+        const config = _getProviderConfig();
+        if (!config) throw new Error('No API key configured');
+
+        const resp = await fetch(config.url, {
+            method: 'POST',
+            headers: config.headers,
+            body: JSON.stringify({
+                model: config.model,
+                max_tokens: 8192,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userMessage }],
+            }),
         });
-        return data.content[0].text;
+
+        if (!resp.ok) {
+            const errText = await resp.text();
+            console.error('AI API error:', resp.status, errText);
+            throw new Error('API error ' + resp.status);
+        }
+
+        const data = await resp.json();
+        return data.content?.[0]?.text || null;
     }
 
     async function testConnection() {
-        const data = await apiFetch({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 16,
-            messages: [{ role: 'user', content: 'Reply with only: OK' }]
-        });
-        return { success: true, model: data.model, reply: data.content[0].text };
+        const config = _getProviderConfig();
+        if (!config) return { success: false, message: 'No API key configured.' };
+
+        const result = await callClaude(
+            'You are a test assistant. Respond with exactly: CONNECTION_OK',
+            'Test connection. Reply with CONNECTION_OK.'
+        );
+
+        if (result && result.includes('CONNECTION_OK')) {
+            return { success: true, model: config.model, message: 'Connected to ' + config.model };
+        } else if (result) {
+            return { success: true, model: config.model, message: 'Connected - got response from ' + config.model };
+        }
+        return { success: false, message: 'Connection failed. Check your API key.' };
     }
 
     return { get, save, clear, isSet, callClaude, testConnection };

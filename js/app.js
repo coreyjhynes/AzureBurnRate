@@ -69,9 +69,13 @@ const App = (() => {
             setStatus(els.keyStatus, 'Testing connection...', 'loading');
             try {
                 const result = await ApiKey.testConnection();
-                setStatus(els.keyStatus, `Connected - model: ${result.model}`, 'success');
+                if (result.success) {
+                    setStatus(els.keyStatus, result.message, 'success');
+                } else {
+                    setStatus(els.keyStatus, result.message, 'error');
+                }
             } catch (e) {
-                setStatus(els.keyStatus, `Connection failed: ${e.message}`, 'error');
+                setStatus(els.keyStatus, 'Connection failed: ' + e.message, 'error');
             } finally {
                 els.testKeyBtn.disabled = false;
             }
