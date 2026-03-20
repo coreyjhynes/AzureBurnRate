@@ -1,0 +1,52 @@
+const ApiKey = (() => {
+    const STORAGE_KEY = 'azure-burn-rate-api-key';
+
+    function get() {
+        return localStorage.getItem(STORAGE_KEY) || '';
+    }
+
+    function save(key) {
+        key = key.trim();
+        if (!key) throw new Error('API key cannot be empty');
+        localStorage.setItem(STORAGE_KEY, key);
+    }
+
+    function clear() {
+        localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function isSet() {
+        return !!get();
+    }
+
+    async function callClaude(systemPrompt, userMessage) {
+        const key = get();
+        if (!key) throw new Error('No API key configured');
+
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-6-20250514',
+                max_tokens: 4096,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userMessage }]
+            })
+        });
+
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error?.message || `API error ${res.status}`);
+        }
+
+        const data = await res.json();
+        return data.content[0].text;
+    }
+
+    return { get, save, clear, isSet, callClaude };
+})();
