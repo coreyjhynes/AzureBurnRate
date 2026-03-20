@@ -55,7 +55,7 @@ const ApiKey = (() => {
 
     async function callClaude(systemPrompt, userMessage) {
         const data = await apiFetch({
-            model: 'claude-sonnet-4-6-20250514',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 4096,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }]
@@ -65,7 +65,7 @@ const ApiKey = (() => {
 
     async function testConnection() {
         const data = await apiFetch({
-            model: 'claude-sonnet-4-6-20250514',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 16,
             messages: [{ role: 'user', content: 'Reply with only: OK' }]
         });
