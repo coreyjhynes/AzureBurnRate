@@ -1,13 +1,19 @@
 const ApiKey = (() => {
     const STORAGE_KEY = 'azure-burn-rate-api-key';
 
+    function sanitize(key) {
+        // Strip non-ASCII characters (fetch headers require ISO-8859-1)
+        return key.replace(/[^\x20-\x7E]/g, '').trim();
+    }
+
     function get() {
-        return localStorage.getItem(STORAGE_KEY) || '';
+        return sanitize(localStorage.getItem(STORAGE_KEY) || '');
     }
 
     function save(key) {
-        key = key.trim();
+        key = sanitize(key);
         if (!key) throw new Error('API key cannot be empty');
+        if (!/^sk-ant-/.test(key)) throw new Error('Key must start with sk-ant-');
         localStorage.setItem(STORAGE_KEY, key);
     }
 
