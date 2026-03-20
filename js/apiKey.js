@@ -2,7 +2,6 @@ const ApiKey = (() => {
     const STORAGE_KEY = 'azure-burn-rate-api-key';
 
     function sanitize(key) {
-        // Keep only printable ASCII (0x21-0x7E) — no spaces, no control chars, no unicode
         return String(key || '').split('').filter(c => {
             const code = c.charCodeAt(0);
             return code >= 0x21 && code <= 0x7E;
@@ -28,41 +27,38 @@ const ApiKey = (() => {
         return !!get();
     }
 
-    async function apiFetch(body) {
+    // Use XMLHttpRequest to avoid fetch's strict ISO-8859-1 header validation
+    function apiFetch(body) {
         const key = get();
-        if (!key) throw new Error('No API key configured');
+        if (!key) return Promise.reject(new Error('No API key configured'));
 
-        // Debug: log key char codes to diagnose encoding issues
-        const badChars = [];
-        for (let i = 0; i < key.length; i++) {
-            const code = key.charCodeAt(i);
-            if (code > 0x7E || code < 0x21) {
-                badChars.push({ pos: i, code, char: key[i] });
-            }
-        }
-        if (badChars.length > 0) {
-            console.error('API key contains non-ASCII chars after sanitize:', badChars);
-            throw new Error('API key contains invalid characters. Clear and re-enter your key.');
-        }
-        console.log('API key length:', key.length, 'first 7 chars:', key.substring(0, 7));
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'https://api.anthropic.com/v1/messages');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('anthropic-version', '2023-06-01');
+            xhr.setRequestHeader('anthropic-dangerous-direct-browser-access', 'true');
+            xhr.setRequestHeader('x-api-key', key);
 
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': key,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify(body)
+            xhr.onload = function () {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(data);
+                    } else {
+                        reject(new Error(data.error?.message || 'API error ' + xhr.status));
+                    }
+                } catch (e) {
+                    reject(new Error('Failed to parse API response'));
+                }
+            };
+
+            xhr.onerror = function () {
+                reject(new Error('Network error — check your connection and CORS'));
+            };
+
+            xhr.send(JSON.stringify(body));
         });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error?.message || 'API error ' + res.status);
-        }
-
-        return res.json();
     }
 
     async function callClaude(systemPrompt, userMessage) {
