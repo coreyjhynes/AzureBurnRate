@@ -32,16 +32,28 @@ const ApiKey = (() => {
         const key = get();
         if (!key) throw new Error('No API key configured');
 
-        // Build headers with a plain Headers object to catch encoding issues early
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/json');
-        headers.set('anthropic-version', '2023-06-01');
-        headers.set('anthropic-dangerous-direct-browser-access', 'true');
-        headers.set('x-api-key', key);
+        // Debug: log key char codes to diagnose encoding issues
+        const badChars = [];
+        for (let i = 0; i < key.length; i++) {
+            const code = key.charCodeAt(i);
+            if (code > 0x7E || code < 0x21) {
+                badChars.push({ pos: i, code, char: key[i] });
+            }
+        }
+        if (badChars.length > 0) {
+            console.error('API key contains non-ASCII chars after sanitize:', badChars);
+            throw new Error('API key contains invalid characters. Clear and re-enter your key.');
+        }
+        console.log('API key length:', key.length, 'first 7 chars:', key.substring(0, 7));
 
         const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers,
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
             body: JSON.stringify(body)
         });
 
