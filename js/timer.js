@@ -43,6 +43,18 @@ const Timer = (() => {
         _fireState();
     }
 
+    function setSpeed(newSpeed) {
+        _speed = newSpeed;
+        // If running, restart interval with new speed
+        if (_state === 'running') {
+            clearInterval(_intervalId);
+            _intervalId = setInterval(() => {
+                _elapsed += TICK_MS * _speed;
+                for (const cb of _tickListeners) cb(_elapsed);
+            }, TICK_MS);
+        }
+    }
+
     function getElapsed() { return _elapsed; }
     function getState() { return _state; }
     function getSpeed() { return _speed; }
@@ -72,7 +84,7 @@ const Timer = (() => {
 
     return {
         start, pause, reset, stop,
-        getElapsed, getState, getSpeed,
+        getElapsed, getState, getSpeed, setSpeed,
         onTick, onStateChange,
         formatElapsed, formatCountdown
     };

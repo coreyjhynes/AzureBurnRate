@@ -206,10 +206,23 @@ textarea { resize: vertical; }
 }
 
 #timer-speed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     color: var(--text-dim);
     font-size: 0.8rem;
     font-weight: 600;
     margin-left: auto;
+}
+#speed-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 /* === Countdown Panel === */

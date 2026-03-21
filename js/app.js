@@ -30,6 +30,7 @@ const App = (() => {
         els.btnStart = $('btn-timer-start');
         els.btnPause = $('btn-timer-pause');
         els.btnReset = $('btn-timer-reset');
+        els.speedSelect = $('speed-select');
         els.countdownWarning = $('countdown-warning');
         els.countdownKill = $('countdown-kill');
         els.simulatedSpend = $('simulated-spend');
@@ -216,6 +217,12 @@ const App = (() => {
 
     // --- Timer ---
     function initTimer() {
+        els.speedSelect.addEventListener('change', () => {
+            const newSpeed = parseInt(els.speedSelect.value);
+            Timer.setSpeed(newSpeed);
+            Messages.add('info', 'Speed changed', 'Simulation now running at ' + newSpeed + 'x speed.');
+        });
+
         els.btnStart.addEventListener('click', () => {
             Timer.start();
             Messages.add('info', 'Simulation started', 'Running at ' + Timer.getSpeed() + 'x speed.');

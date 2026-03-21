@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Burn Rate Estimator</title>
-    <link rel="stylesheet" href="css/style.css?v=14">
+    <link rel="stylesheet" href="css/style.css?v=15">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
@@ -69,7 +69,16 @@
                         <button id="btn-timer-pause" class="btn secondary btn-sm" disabled>Pause</button>
                         <button id="btn-timer-reset" class="btn secondary btn-sm" disabled>Reset</button>
                     </div>
-                    <div id="timer-speed">10x Speed</div>
+                    <div id="timer-speed">
+                        <label for="speed-select">Speed:</label>
+                        <select id="speed-select">
+                            <option value="2">2x</option>
+                            <option value="5">5x</option>
+                            <option value="10" selected>10x</option>
+                            <option value="20">20x</option>
+                            <option value="50">50x</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Totals Row -->
@@ -162,19 +171,19 @@
 
     <footer>
         <p>Azure Burn Rate Estimator &mdash; Pricing via <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a></p>
-        <p id="version-info">v1.1.0 &middot; Build 14</p>
+        <p id="version-info">v1.1.0 &middot; Build 15</p>
     </footer>
 
-    <script src="js/apiKey.js?v=14"></script>
-    <script src="js/pricing.js?v=14"></script>
-    <script src="js/parser.js?v=14"></script>
-    <script src="js/environment.js?v=14"></script>
-    <script src="js/calculator.js?v=14"></script>
-    <script src="js/timer.js?v=14"></script>
-    <script src="js/history.js?v=14"></script>
-    <script src="js/messages.js?v=14"></script>
-    <script src="js/chart.js?v=14"></script>
-    <script src="js/changes.js?v=14"></script>
-    <script src="js/app.js?v=14"></script>
+    <script src="js/apiKey.js?v=15"></script>
+    <script src="js/pricing.js?v=15"></script>
+    <script src="js/parser.js?v=15"></script>
+    <script src="js/environment.js?v=15"></script>
+    <script src="js/calculator.js?v=15"></script>
+    <script src="js/timer.js?v=15"></script>
+    <script src="js/history.js?v=15"></script>
+    <script src="js/messages.js?v=15"></script>
+    <script src="js/chart.js?v=15"></script>
+    <script src="js/changes.js?v=15"></script>
+    <script src="js/app.js?v=15"></script>
 </body>
 </html>
