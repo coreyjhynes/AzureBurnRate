@@ -103,10 +103,10 @@ const BurnChart = (() => {
         }
         chart.data.datasets[0].data = actualData;
 
-        // --- Dataset 1: Projected Spend (from now forward) ---
+        // --- Dataset 1: Projected Spend (from now forward to max time window) ---
         const projPoints = [];
         const projCount = 50;
-        const projMaxHours = Math.max(maxHours, elapsedHours + 10);
+        const projMaxHours = maxHours;
         const projStep = (projMaxHours - elapsedHours) / projCount;
         for (let i = 0; i <= projCount; i++) {
             const h = elapsedHours + (projStep * i);
@@ -125,11 +125,11 @@ const BurnChart = (() => {
             chart.options.scales.yRate.display = true;
         }
 
-        // --- X-axis range ---
-        chart.options.scales.x.max = projMaxHours;
+        // --- X-axis range: fixed to max lab duration ---
+        chart.options.scales.x.max = maxHours;
 
         // --- Y-axis range ---
-        const maxProjectedSpend = currentSpend + currentRate * (projMaxHours - elapsedHours);
+        const maxProjectedSpend = currentSpend + currentRate * (maxHours - elapsedHours);
         const maxY = Math.max(maxProjectedSpend, killThreshold * 1.2, warningThreshold * 1.5);
         chart.options.scales.y.max = maxY;
 
