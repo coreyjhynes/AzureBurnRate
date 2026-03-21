@@ -1,5 +1,4 @@
 const App = (() => {
-    // DOM references
     const $ = id => document.getElementById(id);
 
     const els = {};
@@ -27,24 +26,19 @@ const App = (() => {
         els.applyChangeBtn = $('apply-change-btn');
         els.changeStatus = $('change-status');
         els.changeLog = $('change-log');
-        // Timer
         els.timerDisplay = $('timer-display');
         els.btnStart = $('btn-timer-start');
         els.btnPause = $('btn-timer-pause');
         els.btnReset = $('btn-timer-reset');
-        // Countdowns
         els.countdownWarning = $('countdown-warning');
         els.countdownKill = $('countdown-kill');
         els.simulatedSpend = $('simulated-spend');
-        // Sidebar
         els.sidebar = $('messages-sidebar');
         els.btnClearMessages = $('btn-clear-messages');
-        // Overlay
         els.labEndedOverlay = $('lab-ended-overlay');
         els.btnLabReset = $('btn-lab-reset');
     }
 
-    // --- Status helpers ---
     function setStatus(el, msg, type) {
         el.className = 'status-msg ' + (type || '');
         el.innerHTML = type === 'loading' ? '<span class="spinner"></span>' + msg : msg;
@@ -65,7 +59,14 @@ const App = (() => {
         els.saveKeyBtn.addEventListener('click', () => {
             try {
                 ApiKey.save(els.apiKeyInput.value);
-                initApiKey();
+                // Re-apply UI state without recursive initApiKey call
+                els.apiKeyInput.value = '************';
+                els.apiKeyInput.disabled = true;
+                els.saveKeyBtn.style.display = 'none';
+                els.clearKeyBtn.style.display = '';
+                els.testKeyBtn.style.display = '';
+                els.analyzeBtn.disabled = false;
+                setStatus(els.keyStatus, 'Key saved.', 'success');
             } catch (e) {
                 setStatus(els.keyStatus, e.message, 'error');
             }
@@ -104,7 +105,7 @@ const App = (() => {
         });
     }
 
-    // --- Threshold listeners ---
+    // --- Thresholds ---
     function initThresholds() {
         const refresh = () => {
             if (Environment.getResources().length > 0) refreshDashboard();
@@ -135,7 +136,6 @@ const App = (() => {
 
                 showDashboard();
 
-                // Record initial state in history
                 const rate = Calculator.burnRate(Environment.getResources());
                 History.record(Timer.getElapsed(), rate, 'Initial deployment');
 
@@ -149,7 +149,6 @@ const App = (() => {
         });
     }
 
-    // --- Show Dashboard + Sidebar ---
     function showDashboard() {
         els.dashboard.style.display = '';
         els.sidebar.classList.add('visible');
@@ -163,9 +162,17 @@ const App = (() => {
         const warn = parseFloat(els.warningThreshold.value) || 0;
         const kill = parseFloat(els.killThreshold.value) || 0;
         const maxH = parseFloat(els.maxTime.value) || 720;
+        const elapsedMs = Timer.getElapsed();
 
-        const ttw = Calculator.timeToThreshold(rate, warn);
-        const ttk = Calculator.timeToThreshold(rate, kill);
+        // Cumulative spend from history segments (never decreases)
+        const currentSpend = History.getSpendAt(elapsedMs);
+
+        // Countdown based on cumulative spend
+        const warnRemainingMs = _countdownFromSpend(rate, currentSpend, warn);
+        const killRemainingMs = _countdownFromSpend(rate, currentSpend, kill);
+
+        const ttw = warnRemainingMs / 3600000;
+        const ttk = killRemainingMs / 3600000;
 
         els.burnRate.textContent = Calculator.formatRate(rate);
         els.timeToWarning.textContent = Calculator.formatHours(ttw);
@@ -188,9 +195,17 @@ const App = (() => {
             els.resourceTableBody.appendChild(tr);
         }
 
-        // Chart — update projection + historical
-        BurnChart.update(rate, maxH, warn, kill);
-        BurnChart.updateWithHistory(History.getDataPoints(), History.getAnnotations());
+        // Chart: single update call with all data
+        BurnChart.update(rate, maxH, warn, kill, elapsedMs, currentSpend);
+    }
+
+    // Returns remaining ms until spend reaches threshold from current spend at current rate
+    function _countdownFromSpend(rate, currentSpend, threshold) {
+        if (currentSpend >= threshold) return 0;
+        if (rate <= 0) return Infinity;
+        const remainingDollars = threshold - currentSpend;
+        const remainingHours = remainingDollars / rate;
+        return remainingHours * 3600000;
     }
 
     function esc(s) {
@@ -210,29 +225,17 @@ const App = (() => {
             Messages.add('info', 'Simulation paused', 'Elapsed: ' + Timer.formatElapsed());
         });
         els.btnReset.addEventListener('click', () => {
-            Timer.reset();
-            _warningFired = false;
-            _killFired = false;
-            History.clear();
-            Messages.clear();
-            els.labEndedOverlay.style.display = 'none';
-            Messages.add('info', 'Simulation reset', 'Timer and history cleared.');
-            // Re-record current state
-            const rate = Calculator.burnRate(Environment.getResources());
-            if (rate > 0) History.record(0, rate, 'Reset baseline');
-            refreshDashboard();
+            _resetSimulation();
         });
 
-        // Timer state changes update button states
         Timer.onStateChange(state => {
             els.btnStart.disabled = (state === 'running' || state === 'ended');
             els.btnPause.disabled = (state !== 'running');
             els.btnReset.disabled = (state === 'stopped');
         });
 
-        // Tick handler — updates display, countdowns, triggers warnings
+        // Tick handler
         Timer.onTick(elapsedMs => {
-            // Update timer display
             els.timerDisplay.textContent = Timer.formatElapsed();
 
             const resources = Environment.getResources();
@@ -242,14 +245,13 @@ const App = (() => {
             const warn = parseFloat(els.warningThreshold.value) || 0;
             const kill = parseFloat(els.killThreshold.value) || 0;
 
-            // Simulated spend
-            const elapsedHours = elapsedMs / 3600000;
-            const currentSpend = rate * elapsedHours;
+            // Cumulative spend from history segments (never decreases)
+            const currentSpend = History.getSpendAt(elapsedMs);
             els.simulatedSpend.textContent = '$' + currentSpend.toFixed(2);
 
-            // Countdowns
-            const warnRemainingMs = Calculator.countdownRemainingMs(rate, elapsedMs, warn);
-            const killRemainingMs = Calculator.countdownRemainingMs(rate, elapsedMs, kill);
+            // Countdowns based on remaining dollars at current rate
+            const warnRemainingMs = _countdownFromSpend(rate, currentSpend, warn);
+            const killRemainingMs = _countdownFromSpend(rate, currentSpend, kill);
 
             els.countdownWarning.textContent = Timer.formatCountdown(warnRemainingMs);
             els.countdownKill.textContent = Timer.formatCountdown(killRemainingMs);
@@ -268,23 +270,42 @@ const App = (() => {
                 _warningFired = true;
                 const killTimeLeft = Timer.formatCountdown(killRemainingMs);
                 const topResources = Environment.getResourcesByCost().slice(0, 3);
-                let suggestions = 'Time remaining until kill: ' + killTimeLeft + '\n\n';
-                suggestions += 'Consider deleting these high-cost resources:\n';
+
+                let details = 'Current spend: $' + currentSpend.toFixed(2) + ' (Warning: $' + warn.toLocaleString() + ')\n';
+                details += 'TIME REMAINING UNTIL LAB KILLED: ' + killTimeLeft + '\n\n';
+                details += 'Delete these resources to create more time:\n';
                 for (const r of topResources) {
-                    suggestions += '  - ' + r.name + ' (' + r.type + ') - saves $' + (r.quantity * r.hourlyRate).toFixed(2) + '/hr\n';
+                    const costPerHr = (r.quantity * r.hourlyRate);
+                    const hoursGained = (kill - currentSpend) > 0 ? ((costPerHr / rate) * ((kill - currentSpend) / rate)).toFixed(1) : '0';
+                    details += '  - ' + r.name + ' (' + r.sku + ') - saves $' + costPerHr.toFixed(2) + '/hr\n';
                 }
-                Messages.add('warning', 'WARNING: Spending threshold exceeded!', suggestions);
-                Messages.add('suggestion', 'Suggestion: Delete resources to extend lab time', 'Use the Modify Environment section to remove high-cost resources.');
+
+                Messages.add('warning', 'WARNING: Spending threshold reached!', details);
+                Messages.add('suggestion', 'Delete high-cost resources to extend lab time', 'Use Modify Environment below to remove resources.');
             }
 
             // Kill trigger
             if (killRemainingMs <= 0 && !_killFired) {
                 _killFired = true;
                 Timer.stop();
-                Messages.add('danger', 'LAB ENDED - Kill threshold exceeded', 'Total simulated spend: $' + currentSpend.toFixed(2));
+                Messages.add('danger', 'LAB ENDED - Kill threshold exceeded',
+                    'Total simulated spend: $' + currentSpend.toFixed(2) + '\nKill threshold: $' + kill.toLocaleString());
                 els.labEndedOverlay.style.display = '';
             }
         });
+    }
+
+    function _resetSimulation() {
+        Timer.reset();
+        _warningFired = false;
+        _killFired = false;
+        History.clear();
+        Messages.clear();
+        els.labEndedOverlay.style.display = 'none';
+        Messages.add('info', 'Simulation reset', 'Timer and history cleared.');
+        const rate = Calculator.burnRate(Environment.getResources());
+        if (rate > 0) History.record(0, rate, 'Reset baseline');
+        refreshDashboard();
     }
 
     // --- Messages Sidebar ---
@@ -295,18 +316,7 @@ const App = (() => {
 
     // --- Lab Reset ---
     function initLabReset() {
-        els.btnLabReset.addEventListener('click', () => {
-            els.labEndedOverlay.style.display = 'none';
-            Timer.reset();
-            _warningFired = false;
-            _killFired = false;
-            History.clear();
-            Messages.clear();
-            const rate = Calculator.burnRate(Environment.getResources());
-            if (rate > 0) History.record(0, rate, 'Reset baseline');
-            Messages.add('info', 'Simulation reset', 'Ready to restart.');
-            refreshDashboard();
-        });
+        els.btnLabReset.addEventListener('click', () => _resetSimulation());
     }
 
     // --- Changes ---
@@ -323,28 +333,27 @@ const App = (() => {
                 setStatus(els.changeStatus, 'Applying changes and fetching pricing...', 'loading');
                 await Changes.applyChanges(ops);
 
-                // Build label for history
                 const summary = ops.map(o => o.action + ': ' + o.name + (o.quantity ? ' x' + o.quantity : '')).join(', ');
 
-                // Record in history
+                // Record new rate in history at current simulated time
                 const rate = Calculator.burnRate(Environment.getResources());
                 History.record(Timer.getElapsed(), rate, summary);
 
-                // Log to change log
+                // Log
                 const li = document.createElement('li');
                 const simTime = Timer.formatElapsed();
                 li.innerHTML = '<span class="timestamp">[' + esc(simTime) + ']</span> ' + esc(desc) + ' &mdash; <em>' + esc(summary) + '</em>';
                 els.changeLog.prepend(li);
 
-                // Message
                 Messages.add('info', 'Environment updated', desc + '\nNew burn rate: ' + Calculator.formatRate(rate));
 
                 setStatus(els.changeStatus, 'Changes applied.', 'success');
                 els.changeInput.value = '';
 
-                // Reset warning/kill if thresholds are now OK
+                // Reset warning flag if we're now below warning again
                 const warn = parseFloat(els.warningThreshold.value) || 0;
-                const warnRemaining = Calculator.countdownRemainingMs(rate, Timer.getElapsed(), warn);
+                const currentSpend = History.getSpendAt(Timer.getElapsed());
+                const warnRemaining = _countdownFromSpend(rate, currentSpend, warn);
                 if (warnRemaining > 0) _warningFired = false;
 
                 refreshDashboard();

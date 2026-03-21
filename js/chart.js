@@ -2,45 +2,64 @@ const BurnChart = (() => {
     let chart = null;
 
     function create(canvasId) {
+        if (chart) chart.destroy();
         const ctx = document.getElementById(canvasId).getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: [],
                 datasets: [
+                    {
+                        label: 'Actual Spend ($)',
+                        data: [],
+                        borderColor: '#22d3ee',
+                        backgroundColor: 'rgba(34,211,238,0.15)',
+                        fill: true,
+                        tension: 0,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#22d3ee',
+                        borderWidth: 2
+                    },
                     {
                         label: 'Projected Spend ($)',
                         data: [],
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        backgroundColor: 'rgba(59,130,246,0.08)',
                         fill: true,
                         tension: 0.1,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        borderDash: [6, 4],
+                        borderWidth: 2
                     },
                     {
-                        label: 'Historical Burn Rate ($/hr)',
+                        label: 'Burn Rate ($/hr)',
                         data: [],
-                        borderColor: '#22d3ee',
-                        backgroundColor: 'rgba(34,211,238,0.08)',
+                        borderColor: '#a78bfa',
                         fill: false,
                         stepped: 'before',
                         pointRadius: 3,
-                        pointBackgroundColor: '#22d3ee',
+                        pointBackgroundColor: '#a78bfa',
                         borderWidth: 2,
-                        yAxisID: 'yRate',
-                        hidden: true   // shown only after first event
+                        yAxisID: 'yRate'
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
+                interaction: { intersect: false, mode: 'nearest' },
                 scales: {
                     x: {
-                        title: { display: true, text: 'Hours', color: '#8b8fa3' },
-                        ticks: { color: '#8b8fa3' },
-                        grid: { color: '#2a2d3a' }
+                        type: 'linear',
+                        title: { display: true, text: 'Simulated Hours', color: '#8b8fa3' },
+                        ticks: {
+                            color: '#8b8fa3',
+                            callback: function(v) {
+                                if (v < 48) return v + 'h';
+                                return Math.round(v / 24) + 'd';
+                            }
+                        },
+                        grid: { color: '#2a2d3a' },
+                        min: 0
                     },
                     y: {
                         title: { display: true, text: 'Cumulative Spend ($)', color: '#8b8fa3' },
@@ -50,12 +69,12 @@ const BurnChart = (() => {
                         position: 'left'
                     },
                     yRate: {
-                        title: { display: true, text: 'Burn Rate ($/hr)', color: '#22d3ee' },
-                        ticks: { color: '#22d3ee', callback: v => '$' + v.toFixed(2) },
+                        title: { display: true, text: 'Burn Rate ($/hr)', color: '#a78bfa' },
+                        ticks: { color: '#a78bfa', callback: v => '$' + v.toFixed(2) },
                         grid: { drawOnChartArea: false },
                         beginAtZero: true,
                         position: 'right',
-                        display: false  // shown only when historical data exists
+                        display: false
                     }
                 },
                 plugins: {
@@ -67,27 +86,55 @@ const BurnChart = (() => {
         return chart;
     }
 
-    function update(rate, maxHours, warningThreshold, killThreshold) {
+    // Full update: projection from elapsed time forward, thresholds, history
+    function update(currentRate, maxHours, warningThreshold, killThreshold, elapsedMs, currentSpend) {
         if (!chart) return;
 
-        const points = Calculator.projectedSpend(rate, maxHours);
-        chart.data.labels = points.map(p => {
-            if (p.hours < 48) return p.hours.toFixed(0) + 'h';
-            return (p.hours / 24).toFixed(0) + 'd';
-        });
-        chart.data.datasets[0].data = points.map(p => p.spend);
+        elapsedMs = elapsedMs || 0;
+        currentSpend = currentSpend || 0;
+        const elapsedHours = elapsedMs / 3600000;
 
-        // Max Y should show at least the kill threshold
-        const maxSpend = Math.max(rate * maxHours, killThreshold * 1.2);
-        chart.options.scales.y.max = maxSpend;
+        // --- Dataset 0: Actual Spend (from history) ---
+        const spendPoints = History.getSpendDataPoints();
+        // Add current point
+        const actualData = [...spendPoints];
+        if (elapsedMs > 0 || actualData.length > 0) {
+            actualData.push({ x: elapsedHours, y: currentSpend });
+        }
+        chart.data.datasets[0].data = actualData;
 
-        // Threshold annotations (keep existing event annotations)
-        const existing = chart.options.plugins.annotation.annotations || {};
-        const eventAnnotations = {};
-        for (const key in existing) {
-            if (key.startsWith('event_')) eventAnnotations[key] = existing[key];
+        // --- Dataset 1: Projected Spend (from now forward) ---
+        const projPoints = [];
+        const projCount = 50;
+        const projMaxHours = Math.max(maxHours, elapsedHours + 10);
+        const projStep = (projMaxHours - elapsedHours) / projCount;
+        for (let i = 0; i <= projCount; i++) {
+            const h = elapsedHours + (projStep * i);
+            const spend = currentSpend + currentRate * (h - elapsedHours);
+            projPoints.push({ x: h, y: spend });
+        }
+        chart.data.datasets[1].data = projPoints;
+
+        // --- Dataset 2: Burn Rate (from history) ---
+        const ratePoints = History.getBurnRateDataPoints();
+        if (ratePoints.length > 0) {
+            // Extend last rate to current time
+            const rateData = [...ratePoints];
+            rateData.push({ x: elapsedHours, y: currentRate });
+            chart.data.datasets[2].data = rateData;
+            chart.options.scales.yRate.display = true;
         }
 
+        // --- X-axis range ---
+        chart.options.scales.x.max = projMaxHours;
+
+        // --- Y-axis range ---
+        const maxProjectedSpend = currentSpend + currentRate * (projMaxHours - elapsedHours);
+        const maxY = Math.max(maxProjectedSpend, killThreshold * 1.2, warningThreshold * 1.5);
+        chart.options.scales.y.max = maxY;
+
+        // --- Annotations: thresholds + events ---
+        const eventAnnotations = History.getAnnotations();
         chart.options.plugins.annotation.annotations = {
             ...eventAnnotations,
             warningLine: {
@@ -121,38 +168,26 @@ const BurnChart = (() => {
                     color: '#fff',
                     font: { size: 11 }
                 }
-            }
+            },
+            nowLine: elapsedMs > 0 ? {
+                type: 'line',
+                scaleID: 'x',
+                value: elapsedHours,
+                borderColor: 'rgba(255,255,255,0.3)',
+                borderWidth: 1,
+                borderDash: [3, 3],
+                label: {
+                    display: true,
+                    content: 'Now',
+                    position: 'start',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    color: '#fff',
+                    font: { size: 10 }
+                }
+            } : undefined
         };
 
-        chart.update();
-    }
-
-    function updateWithHistory(dataPoints, eventAnnotations) {
-        if (!chart) return;
-
-        // Show historical dataset and right Y axis if we have data
-        if (dataPoints && dataPoints.length > 0) {
-            chart.data.datasets[1].hidden = false;
-            chart.data.datasets[1].data = dataPoints.map(p => ({
-                x: p.x,
-                y: p.y
-            }));
-            chart.options.scales.yRate.display = true;
-        }
-
-        // Merge event annotations with existing threshold annotations
-        const existing = chart.options.plugins.annotation.annotations || {};
-        // Remove old event annotations
-        for (const key in existing) {
-            if (key.startsWith('event_')) delete existing[key];
-        }
-        // Add new event annotations
-        if (eventAnnotations) {
-            Object.assign(existing, eventAnnotations);
-        }
-        chart.options.plugins.annotation.annotations = existing;
-
-        chart.update();
+        chart.update('none');  // 'none' disables animation to prevent stack issues
     }
 
     function destroy() {
@@ -162,5 +197,5 @@ const BurnChart = (() => {
         }
     }
 
-    return { create, update, updateWithHistory, destroy };
+    return { create, update, destroy };
 })();
