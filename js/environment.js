@@ -39,5 +39,9 @@ const Environment = (() => {
         ).join('\n');
     }
 
-    return { getResources, setResources, addResource, removeResource, updateResource, findByName, clear, toSummary };
+    function getResourcesByCost() {
+        return [...resources].sort((a, b) => (b.quantity * b.hourlyRate) - (a.quantity * a.hourlyRate));
+    }
+
+    return { getResources, setResources, addResource, removeResource, updateResource, findByName, clear, toSummary, getResourcesByCost };
 })();

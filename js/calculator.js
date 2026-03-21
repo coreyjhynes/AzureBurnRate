@@ -33,5 +33,14 @@ const Calculator = (() => {
         return points;
     }
 
-    return { burnRate, timeToThreshold, formatHours, formatRate, projectedSpend };
+    // Returns remaining ms until cumulative spend hits threshold
+    // given current burn rate and already-elapsed simulated ms
+    function countdownRemainingMs(rate, elapsedMs, thresholdDollars) {
+        if (rate <= 0) return Infinity;
+        const hoursToThreshold = thresholdDollars / rate;
+        const msToThreshold = hoursToThreshold * 3600000;
+        return Math.max(0, msToThreshold - elapsedMs);
+    }
+
+    return { burnRate, timeToThreshold, formatHours, formatRate, projectedSpend, countdownRemainingMs };
 })();
