@@ -59,7 +59,8 @@ const BurnChart = (() => {
                             }
                         },
                         grid: { color: '#2a2d3a' },
-                        min: 0
+                        min: 0,
+                        max: 1  // overridden on first update()
                     },
                     y: {
                         title: { display: true, text: 'Cumulative Spend ($)', color: '#8b8fa3' },
@@ -106,12 +107,14 @@ const BurnChart = (() => {
         // --- Dataset 1: Projected Spend (from now forward to max time window) ---
         const projPoints = [];
         const projCount = 50;
-        const projMaxHours = maxHours;
-        const projStep = (projMaxHours - elapsedHours) / projCount;
-        for (let i = 0; i <= projCount; i++) {
-            const h = elapsedHours + (projStep * i);
-            const spend = currentSpend + currentRate * (h - elapsedHours);
-            projPoints.push({ x: h, y: spend });
+        const remainingHours = Math.max(0, maxHours - elapsedHours);
+        if (remainingHours > 0) {
+            const projStep = remainingHours / projCount;
+            for (let i = 0; i <= projCount; i++) {
+                const h = elapsedHours + (projStep * i);
+                const spend = currentSpend + currentRate * (h - elapsedHours);
+                projPoints.push({ x: h, y: spend });
+            }
         }
         chart.data.datasets[1].data = projPoints;
 
