@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Burn Rate Estimator</title>
-    <link rel="stylesheet" href="css/style.css?v=15">
+    <link rel="stylesheet" href="css/style.css?v=16">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
@@ -52,8 +52,11 @@
             <section id="template-section" class="card">
                 <h2>ARM / Bicep Template</h2>
                 <p>Paste your ARM JSON or Bicep template below. Claude will parse it into a resource list.</p>
-                <textarea id="template-input" rows="12" placeholder='Paste your ARM template JSON or Bicep code here...'></textarea>
-                <button id="analyze-btn" class="btn primary" disabled>Analyze Template</button>
+                <textarea id="template-input" rows="12" placeholder='Paste your ARM template JSON or Bicep code here, or click Start Empty below...'></textarea>
+                <div class="btn-row">
+                    <button id="analyze-btn" class="btn primary" disabled>Analyze Template</button>
+                    <button id="start-empty-btn" class="btn secondary" disabled>Start Empty</button>
+                </div>
                 <div id="parse-status" class="status-msg"></div>
             </section>
 
@@ -171,19 +174,19 @@
 
     <footer>
         <p>Azure Burn Rate Estimator &mdash; Pricing via <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a></p>
-        <p id="version-info">v1.1.0 &middot; Build 15</p>
+        <p id="version-info">v1.1.0 &middot; Build 16</p>
     </footer>
 
-    <script src="js/apiKey.js?v=15"></script>
-    <script src="js/pricing.js?v=15"></script>
-    <script src="js/parser.js?v=15"></script>
-    <script src="js/environment.js?v=15"></script>
-    <script src="js/calculator.js?v=15"></script>
-    <script src="js/timer.js?v=15"></script>
-    <script src="js/history.js?v=15"></script>
-    <script src="js/messages.js?v=15"></script>
-    <script src="js/chart.js?v=15"></script>
-    <script src="js/changes.js?v=15"></script>
-    <script src="js/app.js?v=15"></script>
+    <script src="js/apiKey.js?v=16"></script>
+    <script src="js/pricing.js?v=16"></script>
+    <script src="js/parser.js?v=16"></script>
+    <script src="js/environment.js?v=16"></script>
+    <script src="js/calculator.js?v=16"></script>
+    <script src="js/timer.js?v=16"></script>
+    <script src="js/history.js?v=16"></script>
+    <script src="js/messages.js?v=16"></script>
+    <script src="js/chart.js?v=16"></script>
+    <script src="js/changes.js?v=16"></script>
+    <script src="js/app.js?v=16"></script>
 </body>
 </html>

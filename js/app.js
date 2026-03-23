@@ -16,6 +16,7 @@ const App = (() => {
         els.maxTime = $('max-time');
         els.templateInput = $('template-input');
         els.analyzeBtn = $('analyze-btn');
+        els.startEmptyBtn = $('start-empty-btn');
         els.parseStatus = $('parse-status');
         els.dashboard = $('dashboard-section');
         els.burnRate = $('burn-rate');
@@ -54,19 +55,20 @@ const App = (() => {
             els.clearKeyBtn.style.display = '';
             els.testKeyBtn.style.display = '';
             els.analyzeBtn.disabled = false;
+            els.startEmptyBtn.disabled = false;
             setStatus(els.keyStatus, 'Key saved.', 'success');
         }
 
         els.saveKeyBtn.addEventListener('click', () => {
             try {
                 ApiKey.save(els.apiKeyInput.value);
-                // Re-apply UI state without recursive initApiKey call
                 els.apiKeyInput.value = '************';
                 els.apiKeyInput.disabled = true;
                 els.saveKeyBtn.style.display = 'none';
                 els.clearKeyBtn.style.display = '';
                 els.testKeyBtn.style.display = '';
                 els.analyzeBtn.disabled = false;
+                els.startEmptyBtn.disabled = false;
                 setStatus(els.keyStatus, 'Key saved.', 'success');
             } catch (e) {
                 setStatus(els.keyStatus, e.message, 'error');
@@ -81,6 +83,7 @@ const App = (() => {
             els.clearKeyBtn.style.display = 'none';
             els.testKeyBtn.style.display = 'none';
             els.analyzeBtn.disabled = true;
+            els.startEmptyBtn.disabled = true;
             setStatus(els.keyStatus, 'Key cleared.', '');
         });
 
@@ -147,6 +150,16 @@ const App = (() => {
             } finally {
                 els.analyzeBtn.disabled = false;
             }
+        });
+
+        els.startEmptyBtn.addEventListener('click', () => {
+            Environment.clear();
+            Environment.setResources([]);
+            setStatus(els.parseStatus, 'Started with empty environment. Use Modify Environment to add resources.', 'success');
+            showDashboard();
+            History.record(Timer.getElapsed(), 0, 'Empty start');
+            refreshDashboard();
+            Messages.add('info', 'Empty environment', 'No resources deployed. Use Modify Environment to add resources.');
         });
     }
 
