@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Burn Rate Estimator</title>
-    <link rel="stylesheet" href="css/style.css?v=16">
+    <link rel="stylesheet" href="css/style.css?v=17">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
@@ -35,15 +35,15 @@
                 <div class="threshold-grid">
                     <div class="field">
                         <label for="warning-threshold">Warning Threshold ($)</label>
-                        <input type="number" id="warning-threshold" min="0" step="100" value="5000">
+                        <input type="number" id="warning-threshold" min="0" step="1" value="5">
                     </div>
                     <div class="field">
                         <label for="kill-threshold">Kill Threshold / DECO ($)</label>
-                        <input type="number" id="kill-threshold" min="0" step="100" value="10000">
+                        <input type="number" id="kill-threshold" min="0" step="1" value="7">
                     </div>
                     <div class="field">
                         <label for="max-time">Max Time Window (hours)</label>
-                        <input type="number" id="max-time" min="1" step="1" value="720">
+                        <input type="number" id="max-time" min="1" step="1" value="3">
                     </div>
                 </div>
             </section>
@@ -174,19 +174,19 @@
 
     <footer>
         <p>Azure Burn Rate Estimator &mdash; Pricing via <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a></p>
-        <p id="version-info">v1.1.0 &middot; Build 16</p>
+        <p id="version-info">v1.1.0 &middot; Build 17</p>
     </footer>
 
-    <script src="js/apiKey.js?v=16"></script>
-    <script src="js/pricing.js?v=16"></script>
-    <script src="js/parser.js?v=16"></script>
-    <script src="js/environment.js?v=16"></script>
-    <script src="js/calculator.js?v=16"></script>
-    <script src="js/timer.js?v=16"></script>
-    <script src="js/history.js?v=16"></script>
-    <script src="js/messages.js?v=16"></script>
-    <script src="js/chart.js?v=16"></script>
-    <script src="js/changes.js?v=16"></script>
-    <script src="js/app.js?v=16"></script>
+    <script src="js/apiKey.js?v=17"></script>
+    <script src="js/pricing.js?v=17"></script>
+    <script src="js/parser.js?v=17"></script>
+    <script src="js/environment.js?v=17"></script>
+    <script src="js/calculator.js?v=17"></script>
+    <script src="js/timer.js?v=17"></script>
+    <script src="js/history.js?v=17"></script>
+    <script src="js/messages.js?v=17"></script>
+    <script src="js/chart.js?v=17"></script>
+    <script src="js/changes.js?v=17"></script>
+    <script src="js/app.js?v=17"></script>
 </body>
 </html>
