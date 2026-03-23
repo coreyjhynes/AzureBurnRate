@@ -85,6 +85,32 @@ const Skillable = (() => {
         return resp.json();
     }
 
+    // Send or update a notification in a running lab instance.
+    // If name is provided, subsequent calls with the same name update the notification.
+    // Send name with empty notification to delete it.
+    async function sendNotification(labInstanceId, notification, name) {
+        const key = getApiKey();
+        if (!key) throw new Error('No Skillable API key configured');
+
+        const body = { labInstanceId };
+        if (notification) body.notification = notification;
+        if (name) body.name = name;
+
+        const resp = await fetch('/api/skillable/notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-skillable-key': key
+            },
+            body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Notification failed: ' + resp.status);
+        }
+        return resp.json();
+    }
+
     const CLOUD_PROVIDERS = { 10: 'Azure', 11: 'AWS' };
 
     function cloudProviderName(id) {
@@ -99,7 +125,7 @@ const Skillable = (() => {
 
     return {
         getApiKey, saveApiKey, clearApiKey, isKeySet,
-        testConnection, getRunningLabs, getLabDetails,
+        testConnection, getRunningLabs, getLabDetails, sendNotification,
         cloudProviderName, formatEpoch
     };
 })();

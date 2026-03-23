@@ -49,6 +49,10 @@ const App = (() => {
         els.btnClearMessages = $('btn-clear-messages');
         els.labEndedOverlay = $('lab-ended-overlay');
         els.btnLabReset = $('btn-lab-reset');
+        // Target lab selector
+        els.targetLabSelect = $('target-lab-select');
+        els.refreshTargetLabsBtn = $('refresh-target-labs-btn');
+        els.targetLabStatus = $('target-lab-status');
         // Lab instances page
         els.refreshLabsBtn = $('refresh-labs-btn');
         els.labsStatus = $('labs-status');
@@ -279,6 +283,62 @@ const App = (() => {
         els.maxTime.addEventListener('change', refresh);
     }
 
+    // --- Target Lab Instance ---
+    function initTargetLab() {
+        els.refreshTargetLabsBtn.addEventListener('click', refreshTargetLabList);
+    }
+
+    async function refreshTargetLabList() {
+        if (!Skillable.isKeySet()) {
+            setStatus(els.targetLabStatus, 'Configure Skillable API key first.', 'error');
+            return;
+        }
+
+        els.refreshTargetLabsBtn.disabled = true;
+        setStatus(els.targetLabStatus, 'Loading labs...', 'loading');
+
+        try {
+            const data = await Skillable.getRunningLabs();
+            const labs = Array.isArray(data) ? data : (data.RunningLabs || data.SavedLabs || []);
+            const prev = els.targetLabSelect.value;
+
+            // Keep first "none" option, replace the rest
+            els.targetLabSelect.innerHTML = '<option value="">No lab selected (notifications disabled)</option>';
+            for (const lab of labs) {
+                const opt = document.createElement('option');
+                opt.value = lab.Id;
+                opt.textContent = lab.LabProfileName + ' (' + lab.Id + ') - ' + Skillable.cloudProviderName(lab.CloudProviderId);
+                els.targetLabSelect.appendChild(opt);
+            }
+
+            // Restore previous selection if still available
+            if (prev) els.targetLabSelect.value = prev;
+
+            setStatus(els.targetLabStatus, labs.length + ' lab(s) available.', 'success');
+        } catch (e) {
+            setStatus(els.targetLabStatus, 'Error: ' + e.message, 'error');
+        } finally {
+            els.refreshTargetLabsBtn.disabled = false;
+        }
+    }
+
+    function getTargetLabId() {
+        return els.targetLabSelect.value || '';
+    }
+
+    // Send a notification to the target lab (fire-and-forget with logging)
+    async function notifyTargetLab(message, name) {
+        const labId = getTargetLabId();
+        if (!labId || !Skillable.isKeySet()) return;
+
+        try {
+            await Skillable.sendNotification(labId, message, name);
+            Messages.add('info', 'Notification sent to lab ' + labId, message);
+        } catch (e) {
+            Messages.add('warning', 'Failed to send notification', e.message);
+        }
+    }
+
     // --- Template Analysis ---
     function initAnalyze() {
         els.analyzeBtn.addEventListener('click', async () => {
@@ -454,6 +514,15 @@ const App = (() => {
 
                 Messages.add('warning', 'WARNING: Spending threshold reached!', details);
                 Messages.add('suggestion', 'Delete high-cost resources to extend lab time', 'Use Modify Environment below to remove resources.');
+
+                // Send notification to target lab
+                const killTimeStr = Timer.formatCountdown(killRemainingMs);
+                notifyTargetLab(
+                    'BUDGET WARNING: Spending threshold ($' + warn + ') reached!\n' +
+                    'Time remaining before lab kill: ' + killTimeStr + '\n' +
+                    'Delete resources to extend your lab time.',
+                    'budget-warning'
+                );
             }
 
             if (killRemainingMs <= 0 && !_killFired) {
@@ -462,6 +531,14 @@ const App = (() => {
                 Messages.add('danger', 'LAB ENDED - Kill threshold exceeded',
                     'Total simulated spend: $' + currentSpend.toFixed(2) + '\nKill threshold: $' + kill.toLocaleString());
                 els.labEndedOverlay.style.display = '';
+
+                // Send kill notification to target lab
+                notifyTargetLab(
+                    'LAB BUDGET EXCEEDED: Kill threshold ($' + kill + ') reached.\n' +
+                    'Total simulated spend: $' + currentSpend.toFixed(2) + '\n' +
+                    'Lab session is being terminated.',
+                    'budget-kill'
+                );
             }
         });
     }
@@ -538,6 +615,7 @@ const App = (() => {
         initClaudeKey();
         initSkillableKey();
         initThresholds();
+        initTargetLab();
         initAnalyze();
         initTimer();
         initMessages();
