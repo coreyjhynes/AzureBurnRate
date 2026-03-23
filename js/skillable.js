@@ -35,6 +35,14 @@ const Skillable = (() => {
         return !!getApiKey();
     }
 
+    async function _parseJsonOrError(resp) {
+        const text = await resp.text();
+        if (text.trimStart().startsWith('<')) {
+            throw new Error('Skillable API requires the local server. Run "npm start" and use http://localhost:3000');
+        }
+        return JSON.parse(text);
+    }
+
     async function testConnection() {
         const key = getApiKey();
         if (!key) return { success: false, message: 'No Skillable API key configured.' };
@@ -47,13 +55,13 @@ const Skillable = (() => {
                     'x-skillable-key': key
                 }
             });
-            const data = await resp.json();
+            const data = await _parseJsonOrError(resp);
             if (resp.ok && data.success) {
                 return { success: true, message: data.message + ' (' + data.labCount + ' labs found)' };
             }
             return { success: false, message: data.error || 'Connection failed' };
         } catch (e) {
-            return { success: false, message: 'Connection failed: ' + e.message };
+            return { success: false, message: e.message };
         }
     }
 
@@ -64,11 +72,11 @@ const Skillable = (() => {
         const resp = await fetch('/api/skillable/runningandsavedlabs', {
             headers: { 'x-skillable-key': key }
         });
+        const data = await _parseJsonOrError(resp);
         if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'API error ' + resp.status);
         }
-        return resp.json();
+        return data;
     }
 
     async function getLabDetails(labInstanceId) {
@@ -78,11 +86,11 @@ const Skillable = (() => {
         const resp = await fetch('/api/skillable/details/' + encodeURIComponent(labInstanceId), {
             headers: { 'x-skillable-key': key }
         });
+        const data = await _parseJsonOrError(resp);
         if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'API error ' + resp.status);
         }
-        return resp.json();
+        return data;
     }
 
     // Send or update a notification in a running lab instance.
@@ -104,11 +112,11 @@ const Skillable = (() => {
             },
             body: JSON.stringify(body)
         });
+        const data = await _parseJsonOrError(resp);
         if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Notification failed: ' + resp.status);
         }
-        return resp.json();
+        return data;
     }
 
     const CLOUD_PROVIDERS = { 10: 'Azure', 11: 'AWS' };
