@@ -6,11 +6,21 @@ const App = (() => {
     let _killFired = false;
 
     function cacheDom() {
+        // Config page - Claude
         els.apiKeyInput = $('api-key-input');
         els.saveKeyBtn = $('save-key-btn');
         els.clearKeyBtn = $('clear-key-btn');
         els.testKeyBtn = $('test-key-btn');
         els.keyStatus = $('key-status');
+        els.claudeConnStatus = $('claude-conn-status');
+        // Config page - Skillable
+        els.skillableKeyInput = $('skillable-key-input');
+        els.saveSkillableBtn = $('save-skillable-btn');
+        els.clearSkillableBtn = $('clear-skillable-btn');
+        els.testSkillableBtn = $('test-skillable-btn');
+        els.skillableStatus = $('skillable-status');
+        els.skillableConnStatus = $('skillable-conn-status');
+        // Estimator page
         els.warningThreshold = $('warning-threshold');
         els.killThreshold = $('kill-threshold');
         els.maxTime = $('max-time');
@@ -39,6 +49,12 @@ const App = (() => {
         els.btnClearMessages = $('btn-clear-messages');
         els.labEndedOverlay = $('lab-ended-overlay');
         els.btnLabReset = $('btn-lab-reset');
+        // Lab instances page
+        els.refreshLabsBtn = $('refresh-labs-btn');
+        els.labsStatus = $('labs-status');
+        els.labsEmpty = $('labs-empty');
+        els.labsTableWrap = $('labs-table-wrap');
+        els.labsTableBody = $('labs-table-body');
     }
 
     function setStatus(el, msg, type) {
@@ -46,22 +62,10 @@ const App = (() => {
         el.innerHTML = type === 'loading' ? '<span class="spinner"></span>' + msg : msg;
     }
 
-    // --- API Key ---
-    function initApiKey() {
-        if (ApiKey.isSet()) {
-            els.apiKeyInput.value = '************';
-            els.apiKeyInput.disabled = true;
-            els.saveKeyBtn.style.display = 'none';
-            els.clearKeyBtn.style.display = '';
-            els.testKeyBtn.style.display = '';
-            els.analyzeBtn.disabled = false;
-            els.startEmptyBtn.disabled = false;
-            setStatus(els.keyStatus, 'Key saved.', 'success');
-        }
-
-        els.saveKeyBtn.addEventListener('click', () => {
-            try {
-                ApiKey.save(els.apiKeyInput.value);
+    // --- Claude API Key (Config page) ---
+    function initClaudeKey() {
+        function applyKeyState() {
+            if (ApiKey.isSet()) {
                 els.apiKeyInput.value = '************';
                 els.apiKeyInput.disabled = true;
                 els.saveKeyBtn.style.display = 'none';
@@ -70,6 +74,27 @@ const App = (() => {
                 els.analyzeBtn.disabled = false;
                 els.startEmptyBtn.disabled = false;
                 setStatus(els.keyStatus, 'Key saved.', 'success');
+                els.claudeConnStatus.className = 'status-badge connected';
+                els.claudeConnStatus.textContent = 'Configured';
+            } else {
+                els.apiKeyInput.value = '';
+                els.apiKeyInput.disabled = false;
+                els.saveKeyBtn.style.display = '';
+                els.clearKeyBtn.style.display = 'none';
+                els.testKeyBtn.style.display = 'none';
+                els.analyzeBtn.disabled = true;
+                els.startEmptyBtn.disabled = true;
+                els.claudeConnStatus.className = 'status-badge not-configured';
+                els.claudeConnStatus.textContent = 'Not Configured';
+            }
+        }
+
+        applyKeyState();
+
+        els.saveKeyBtn.addEventListener('click', () => {
+            try {
+                ApiKey.save(els.apiKeyInput.value);
+                applyKeyState();
             } catch (e) {
                 setStatus(els.keyStatus, e.message, 'error');
             }
@@ -77,13 +102,7 @@ const App = (() => {
 
         els.clearKeyBtn.addEventListener('click', () => {
             ApiKey.clear();
-            els.apiKeyInput.value = '';
-            els.apiKeyInput.disabled = false;
-            els.saveKeyBtn.style.display = '';
-            els.clearKeyBtn.style.display = 'none';
-            els.testKeyBtn.style.display = 'none';
-            els.analyzeBtn.disabled = true;
-            els.startEmptyBtn.disabled = true;
+            applyKeyState();
             setStatus(els.keyStatus, 'Key cleared.', '');
         });
 
@@ -94,8 +113,12 @@ const App = (() => {
                 const result = await ApiKey.testConnection();
                 if (result.success) {
                     setStatus(els.keyStatus, result.message, 'success');
+                    els.claudeConnStatus.className = 'status-badge connected';
+                    els.claudeConnStatus.textContent = 'Connected';
                 } else {
                     setStatus(els.keyStatus, result.message, 'error');
+                    els.claudeConnStatus.className = 'status-badge error';
+                    els.claudeConnStatus.textContent = 'Error';
                 }
             } catch (e) {
                 setStatus(els.keyStatus, 'Connection failed: ' + e.message, 'error');
@@ -103,9 +126,146 @@ const App = (() => {
                 els.testKeyBtn.disabled = false;
             }
         });
+    }
 
-        els.apiKeyInput.addEventListener('input', () => {
-            els.analyzeBtn.disabled = !els.apiKeyInput.value.trim();
+    // --- Skillable API Key (Config page) ---
+    function initSkillableKey() {
+        function applyKeyState() {
+            if (Skillable.isKeySet()) {
+                els.skillableKeyInput.value = '************';
+                els.skillableKeyInput.disabled = true;
+                els.saveSkillableBtn.style.display = 'none';
+                els.clearSkillableBtn.style.display = '';
+                els.testSkillableBtn.style.display = '';
+                setStatus(els.skillableStatus, 'Key saved.', 'success');
+                els.skillableConnStatus.className = 'status-badge connected';
+                els.skillableConnStatus.textContent = 'Configured';
+            } else {
+                els.skillableKeyInput.value = '';
+                els.skillableKeyInput.disabled = false;
+                els.saveSkillableBtn.style.display = '';
+                els.clearSkillableBtn.style.display = 'none';
+                els.testSkillableBtn.style.display = 'none';
+                els.skillableConnStatus.className = 'status-badge not-configured';
+                els.skillableConnStatus.textContent = 'Not Configured';
+            }
+        }
+
+        applyKeyState();
+
+        els.saveSkillableBtn.addEventListener('click', () => {
+            try {
+                Skillable.saveApiKey(els.skillableKeyInput.value);
+                applyKeyState();
+            } catch (e) {
+                setStatus(els.skillableStatus, e.message, 'error');
+            }
+        });
+
+        els.clearSkillableBtn.addEventListener('click', () => {
+            Skillable.clearApiKey();
+            applyKeyState();
+            setStatus(els.skillableStatus, 'Key cleared.', '');
+        });
+
+        els.testSkillableBtn.addEventListener('click', async () => {
+            els.testSkillableBtn.disabled = true;
+            setStatus(els.skillableStatus, 'Testing connection...', 'loading');
+            try {
+                const result = await Skillable.testConnection();
+                if (result.success) {
+                    setStatus(els.skillableStatus, result.message, 'success');
+                    els.skillableConnStatus.className = 'status-badge connected';
+                    els.skillableConnStatus.textContent = 'Connected';
+                } else {
+                    setStatus(els.skillableStatus, result.message, 'error');
+                    els.skillableConnStatus.className = 'status-badge error';
+                    els.skillableConnStatus.textContent = 'Error';
+                }
+            } catch (e) {
+                setStatus(els.skillableStatus, 'Connection failed: ' + e.message, 'error');
+            } finally {
+                els.testSkillableBtn.disabled = false;
+            }
+        });
+    }
+
+    // --- Lab Instances Page ---
+    function initLabInstances() {
+        els.refreshLabsBtn.addEventListener('click', loadLabInstances);
+    }
+
+    async function loadLabInstances() {
+        if (!Skillable.isKeySet()) {
+            setStatus(els.labsStatus, 'Skillable API key not configured. Go to Configuration tab.', 'error');
+            els.labsEmpty.style.display = '';
+            els.labsTableWrap.style.display = 'none';
+            return;
+        }
+
+        els.refreshLabsBtn.disabled = true;
+        setStatus(els.labsStatus, 'Fetching lab instances...', 'loading');
+
+        try {
+            const data = await Skillable.getRunningLabs();
+            const labs = Array.isArray(data) ? data : (data.RunningLabs || data.SavedLabs || []);
+
+            if (labs.length === 0) {
+                els.labsEmpty.style.display = '';
+                els.labsTableWrap.style.display = 'none';
+                setStatus(els.labsStatus, 'No running or saved labs found.', '');
+            } else {
+                els.labsEmpty.style.display = 'none';
+                els.labsTableWrap.style.display = '';
+                renderLabsTable(labs);
+                setStatus(els.labsStatus, labs.length + ' lab instance(s) found.', 'success');
+            }
+        } catch (e) {
+            setStatus(els.labsStatus, 'Error: ' + e.message, 'error');
+            els.labsEmpty.style.display = '';
+            els.labsTableWrap.style.display = 'none';
+        } finally {
+            els.refreshLabsBtn.disabled = false;
+        }
+    }
+
+    function renderLabsTable(labs) {
+        els.labsTableBody.innerHTML = '';
+        for (const lab of labs) {
+            const tr = document.createElement('tr');
+            const cloudId = lab.CloudProviderId || 0;
+            const cloudName = Skillable.cloudProviderName(cloudId);
+            const cloudBadge = cloudId === 10 ? 'badge-azure' : cloudId === 11 ? 'badge-aws' : '';
+            const userName = [lab.UserFirstName, lab.UserLastName].filter(Boolean).join(' ') || '--';
+
+            tr.innerHTML =
+                '<td>' + esc(String(lab.Id || '')) + '</td>' +
+                '<td>' + esc(lab.LabProfileName || lab.LabProfileNumber || '--') + '</td>' +
+                '<td>' + esc(userName) + '</td>' +
+                '<td><span class="badge ' + cloudBadge + '">' + esc(cloudName) + '</span></td>' +
+                '<td>' + esc(Skillable.formatEpoch(lab.Start)) + '</td>' +
+                '<td>' + esc(Skillable.formatEpoch(lab.Expires)) + '</td>' +
+                '<td><button class="btn secondary btn-xs" data-lab-id="' + esc(String(lab.Id || '')) + '">Details</button></td>';
+            els.labsTableBody.appendChild(tr);
+        }
+
+        // Wire detail buttons
+        els.labsTableBody.querySelectorAll('[data-lab-id]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.labId;
+                btn.disabled = true;
+                btn.textContent = '...';
+                try {
+                    const details = await Skillable.getLabDetails(id);
+                    console.log('Lab details:', details);
+                    alert('Lab ' + id + ' details logged to console.\n\nLab: ' + (details.LabProfileName || 'Unknown') + '\nCloud: ' + Skillable.cloudProviderName(details.CloudProviderId));
+                } catch (e) {
+                    alert('Error fetching details: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Details';
+                }
+            });
         });
     }
 
@@ -165,7 +325,9 @@ const App = (() => {
 
     function showDashboard() {
         els.dashboard.style.display = '';
-        els.sidebar.classList.add('visible');
+        if (Navigation.getCurrentPage() === 'estimator') {
+            els.sidebar.classList.add('visible');
+        }
         BurnChart.create('burn-chart');
     }
 
@@ -178,10 +340,8 @@ const App = (() => {
         const maxH = parseFloat(els.maxTime.value) || 720;
         const elapsedMs = Timer.getElapsed();
 
-        // Cumulative spend from history segments (never decreases)
         const currentSpend = History.getSpendAt(elapsedMs);
 
-        // Countdown based on cumulative spend
         const warnRemainingMs = _countdownFromSpend(rate, currentSpend, warn);
         const killRemainingMs = _countdownFromSpend(rate, currentSpend, kill);
 
@@ -209,11 +369,9 @@ const App = (() => {
             els.resourceTableBody.appendChild(tr);
         }
 
-        // Chart: single update call with all data
         BurnChart.update(rate, maxH, warn, kill, elapsedMs, currentSpend);
     }
 
-    // Returns remaining ms until spend reaches threshold from current spend at current rate
     function _countdownFromSpend(rate, currentSpend, threshold) {
         if (currentSpend >= threshold) return 0;
         if (rate <= 0) return Infinity;
@@ -254,7 +412,6 @@ const App = (() => {
             els.btnReset.disabled = (state === 'stopped');
         });
 
-        // Tick handler
         Timer.onTick(elapsedMs => {
             els.timerDisplay.textContent = Timer.formatElapsed();
 
@@ -265,18 +422,15 @@ const App = (() => {
             const warn = parseFloat(els.warningThreshold.value) || 0;
             const kill = parseFloat(els.killThreshold.value) || 0;
 
-            // Cumulative spend from history segments (never decreases)
             const currentSpend = History.getSpendAt(elapsedMs);
             els.simulatedSpend.textContent = '$' + currentSpend.toFixed(2);
 
-            // Countdowns based on remaining dollars at current rate
             const warnRemainingMs = _countdownFromSpend(rate, currentSpend, warn);
             const killRemainingMs = _countdownFromSpend(rate, currentSpend, kill);
 
             els.countdownWarning.textContent = Timer.formatCountdown(warnRemainingMs);
             els.countdownKill.textContent = Timer.formatCountdown(killRemainingMs);
 
-            // Color coding
             els.countdownWarning.className = 'countdown-value' +
                 (warnRemainingMs <= 0 ? ' countdown-critical' :
                  warnRemainingMs < 3600000 ? ' countdown-warning' : '');
@@ -285,7 +439,6 @@ const App = (() => {
                 (killRemainingMs <= 0 ? ' countdown-critical' :
                  killRemainingMs < 3600000 ? ' countdown-critical' : '');
 
-            // Warning trigger
             if (warnRemainingMs <= 0 && !_warningFired) {
                 _warningFired = true;
                 const killTimeLeft = Timer.formatCountdown(killRemainingMs);
@@ -296,7 +449,6 @@ const App = (() => {
                 details += 'Delete these resources to create more time:\n';
                 for (const r of topResources) {
                     const costPerHr = (r.quantity * r.hourlyRate);
-                    const hoursGained = (kill - currentSpend) > 0 ? ((costPerHr / rate) * ((kill - currentSpend) / rate)).toFixed(1) : '0';
                     details += '  - ' + r.name + ' (' + r.sku + ') - saves $' + costPerHr.toFixed(2) + '/hr\n';
                 }
 
@@ -304,7 +456,6 @@ const App = (() => {
                 Messages.add('suggestion', 'Delete high-cost resources to extend lab time', 'Use Modify Environment below to remove resources.');
             }
 
-            // Kill trigger
             if (killRemainingMs <= 0 && !_killFired) {
                 _killFired = true;
                 Timer.stop();
@@ -328,13 +479,11 @@ const App = (() => {
         refreshDashboard();
     }
 
-    // --- Messages Sidebar ---
     function initMessages() {
         Messages.init('#messages-list');
         els.btnClearMessages.addEventListener('click', () => Messages.clear());
     }
 
-    // --- Lab Reset ---
     function initLabReset() {
         els.btnLabReset.addEventListener('click', () => _resetSimulation());
     }
@@ -355,11 +504,9 @@ const App = (() => {
 
                 const summary = ops.map(o => o.action + ': ' + o.name + (o.quantity ? ' x' + o.quantity : '')).join(', ');
 
-                // Record new rate in history at current simulated time
                 const rate = Calculator.burnRate(Environment.getResources());
                 History.record(Timer.getElapsed(), rate, summary);
 
-                // Log
                 const li = document.createElement('li');
                 const simTime = Timer.formatElapsed();
                 li.innerHTML = '<span class="timestamp">[' + esc(simTime) + ']</span> ' + esc(desc) + ' &mdash; <em>' + esc(summary) + '</em>';
@@ -370,7 +517,6 @@ const App = (() => {
                 setStatus(els.changeStatus, 'Changes applied.', 'success');
                 els.changeInput.value = '';
 
-                // Reset warning flag if we're now below warning again
                 const warn = parseFloat(els.warningThreshold.value) || 0;
                 const currentSpend = History.getSpendAt(Timer.getElapsed());
                 const warnRemaining = _countdownFromSpend(rate, currentSpend, warn);
@@ -388,13 +534,16 @@ const App = (() => {
     // --- Init ---
     function init() {
         cacheDom();
-        initApiKey();
+        Navigation.init();
+        initClaudeKey();
+        initSkillableKey();
         initThresholds();
         initAnalyze();
         initTimer();
         initMessages();
         initLabReset();
         initChanges();
+        initLabInstances();
     }
 
     document.addEventListener('DOMContentLoaded', init);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Burn Rate Estimator</title>
-    <link rel="stylesheet" href="css/style.css?v=17">
+    <link rel="stylesheet" href="css/style.css?v=18">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
@@ -14,143 +14,223 @@
         <p class="subtitle">Simulate Azure environments and forecast cloud spending</p>
     </header>
 
+    <!-- Navigation -->
+    <nav id="main-nav">
+        <button class="nav-tab active" data-page="estimator">Estimator</button>
+        <button class="nav-tab" data-page="config">Configuration</button>
+        <button class="nav-tab" data-page="labs">Lab Instances</button>
+    </nav>
+
     <div id="app-container">
         <main id="app-main">
-            <!-- API Key Section -->
-            <section id="api-key-section" class="card">
-                <h2>Claude API Key</h2>
-                <p>Enter your Anthropic API key to enable template parsing and change interpretation.</p>
-                <div class="input-row">
-                    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
-                    <button id="save-key-btn" class="btn primary">Save Key</button>
-                    <button id="clear-key-btn" class="btn secondary" style="display:none;">Clear Key</button>
-                    <button id="test-key-btn" class="btn secondary" style="display:none;">Test Connection</button>
-                </div>
-                <div id="key-status" class="status-msg"></div>
-            </section>
 
-            <!-- Thresholds Section -->
-            <section id="thresholds-section" class="card">
-                <h2>Spending Thresholds</h2>
-                <div class="threshold-grid">
-                    <div class="field">
-                        <label for="warning-threshold">Warning Threshold ($)</label>
-                        <input type="number" id="warning-threshold" min="0" step="1" value="5">
-                    </div>
-                    <div class="field">
-                        <label for="kill-threshold">Kill Threshold / DECO ($)</label>
-                        <input type="number" id="kill-threshold" min="0" step="1" value="7">
-                    </div>
-                    <div class="field">
-                        <label for="max-time">Max Time Window (hours)</label>
-                        <input type="number" id="max-time" min="1" step="1" value="3">
-                    </div>
-                </div>
-            </section>
+            <!-- ==================== PAGE: ESTIMATOR ==================== -->
+            <div id="page-estimator" class="page-content">
 
-            <!-- Template Input Section -->
-            <section id="template-section" class="card">
-                <h2>ARM / Bicep Template</h2>
-                <p>Paste your ARM JSON or Bicep template below. Claude will parse it into a resource list.</p>
-                <textarea id="template-input" rows="12" placeholder='Paste your ARM template JSON or Bicep code here, or click Start Empty below...'></textarea>
-                <div class="btn-row">
-                    <button id="analyze-btn" class="btn primary" disabled>Analyze Template</button>
-                    <button id="start-empty-btn" class="btn secondary" disabled>Start Empty</button>
-                </div>
-                <div id="parse-status" class="status-msg"></div>
-            </section>
-
-            <!-- Dashboard (hidden until environment exists) -->
-            <section id="dashboard-section" class="card" style="display:none;">
-                <h2>Environment Dashboard</h2>
-
-                <!-- Timer Panel -->
-                <div id="timer-panel">
-                    <div id="timer-display">00h 00m 00s</div>
-                    <div id="timer-controls">
-                        <button id="btn-timer-start" class="btn primary btn-sm">Start</button>
-                        <button id="btn-timer-pause" class="btn secondary btn-sm" disabled>Pause</button>
-                        <button id="btn-timer-reset" class="btn secondary btn-sm" disabled>Reset</button>
+                <!-- Thresholds Section -->
+                <section id="thresholds-section" class="card">
+                    <h2>Spending Thresholds</h2>
+                    <div class="threshold-grid">
+                        <div class="field">
+                            <label for="warning-threshold">Warning Threshold ($)</label>
+                            <input type="number" id="warning-threshold" min="0" step="1" value="5">
+                        </div>
+                        <div class="field">
+                            <label for="kill-threshold">Kill Threshold / DECO ($)</label>
+                            <input type="number" id="kill-threshold" min="0" step="1" value="7">
+                        </div>
+                        <div class="field">
+                            <label for="max-time">Max Time Window (hours)</label>
+                            <input type="number" id="max-time" min="1" step="1" value="3">
+                        </div>
                     </div>
-                    <div id="timer-speed">
-                        <label for="speed-select">Speed:</label>
-                        <select id="speed-select">
-                            <option value="2">2x</option>
-                            <option value="5">5x</option>
-                            <option value="10" selected>10x</option>
-                            <option value="20">20x</option>
-                            <option value="50">50x</option>
-                        </select>
-                    </div>
-                </div>
+                </section>
 
-                <!-- Totals Row -->
-                <div class="totals-row">
-                    <div class="metric">
-                        <span class="metric-label">Burn Rate</span>
-                        <span id="burn-rate" class="metric-value">$0.00/hr</span>
+                <!-- Template Input Section -->
+                <section id="template-section" class="card">
+                    <h2>ARM / Bicep Template</h2>
+                    <p>Paste your ARM JSON or Bicep template below. Claude will parse it into a resource list.</p>
+                    <textarea id="template-input" rows="12" placeholder='Paste your ARM template JSON or Bicep code here, or click Start Empty below...'></textarea>
+                    <div class="btn-row">
+                        <button id="analyze-btn" class="btn primary" disabled>Analyze Template</button>
+                        <button id="start-empty-btn" class="btn secondary" disabled>Start Empty</button>
                     </div>
-                    <div class="metric warning">
-                        <span class="metric-label">Time to Warning</span>
-                        <span id="time-to-warning" class="metric-value">--</span>
-                    </div>
-                    <div class="metric danger">
-                        <span class="metric-label">Time to Kill (DECO)</span>
-                        <span id="time-to-kill" class="metric-value">--</span>
-                    </div>
-                </div>
+                    <div id="parse-status" class="status-msg"></div>
+                </section>
 
-                <!-- Live Countdowns -->
-                <div id="countdown-panel">
-                    <div class="countdown-item">
-                        <span class="countdown-label">Warning Countdown</span>
-                        <span id="countdown-warning" class="countdown-value">--:--:--</span>
+                <!-- Dashboard (hidden until environment exists) -->
+                <section id="dashboard-section" class="card" style="display:none;">
+                    <h2>Environment Dashboard</h2>
+
+                    <!-- Timer Panel -->
+                    <div id="timer-panel">
+                        <div id="timer-display">00h 00m 00s</div>
+                        <div id="timer-controls">
+                            <button id="btn-timer-start" class="btn primary btn-sm">Start</button>
+                            <button id="btn-timer-pause" class="btn secondary btn-sm" disabled>Pause</button>
+                            <button id="btn-timer-reset" class="btn secondary btn-sm" disabled>Reset</button>
+                        </div>
+                        <div id="timer-speed">
+                            <label for="speed-select">Speed:</label>
+                            <select id="speed-select">
+                                <option value="2">2x</option>
+                                <option value="5">5x</option>
+                                <option value="10" selected>10x</option>
+                                <option value="20">20x</option>
+                                <option value="50">50x</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="countdown-item">
-                        <span class="countdown-label">Kill Countdown (DECO)</span>
-                        <span id="countdown-kill" class="countdown-value countdown-danger">--:--:--</span>
+
+                    <!-- Totals Row -->
+                    <div class="totals-row">
+                        <div class="metric">
+                            <span class="metric-label">Burn Rate</span>
+                            <span id="burn-rate" class="metric-value">$0.00/hr</span>
+                        </div>
+                        <div class="metric warning">
+                            <span class="metric-label">Time to Warning</span>
+                            <span id="time-to-warning" class="metric-value">--</span>
+                        </div>
+                        <div class="metric danger">
+                            <span class="metric-label">Time to Kill (DECO)</span>
+                            <span id="time-to-kill" class="metric-value">--</span>
+                        </div>
                     </div>
-                    <div class="countdown-item">
-                        <span class="countdown-label">Simulated Spend</span>
-                        <span id="simulated-spend" class="countdown-value">$0.00</span>
+
+                    <!-- Live Countdowns -->
+                    <div id="countdown-panel">
+                        <div class="countdown-item">
+                            <span class="countdown-label">Warning Countdown</span>
+                            <span id="countdown-warning" class="countdown-value">--:--:--</span>
+                        </div>
+                        <div class="countdown-item">
+                            <span class="countdown-label">Kill Countdown (DECO)</span>
+                            <span id="countdown-kill" class="countdown-value countdown-danger">--:--:--</span>
+                        </div>
+                        <div class="countdown-item">
+                            <span class="countdown-label">Simulated Spend</span>
+                            <span id="simulated-spend" class="countdown-value">$0.00</span>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Chart -->
-                <div class="chart-container">
-                    <canvas id="burn-chart"></canvas>
-                </div>
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <canvas id="burn-chart"></canvas>
+                    </div>
 
-                <!-- Resource Table -->
-                <h3>Simulated Resources</h3>
-                <div class="table-wrap">
-                    <table id="resource-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>SKU / Size</th>
-                                <th>Region</th>
-                                <th>Qty</th>
-                                <th>$/hr (each)</th>
-                                <th>Subtotal $/hr</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+                    <!-- Resource Table -->
+                    <h3>Simulated Resources</h3>
+                    <div class="table-wrap">
+                        <table id="resource-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>SKU / Size</th>
+                                    <th>Region</th>
+                                    <th>Qty</th>
+                                    <th>$/hr (each)</th>
+                                    <th>Subtotal $/hr</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
 
-                <!-- Change Input -->
-                <h3>Modify Environment</h3>
-                <p>Describe changes in plain English. Claude will interpret and apply them.</p>
-                <textarea id="change-input" rows="3" placeholder='e.g. "Add 3 more Standard_D4s_v3 VMs" or "Remove the storage account"'></textarea>
-                <button id="apply-change-btn" class="btn primary">Apply Changes</button>
-                <div id="change-status" class="status-msg"></div>
+                    <!-- Change Input -->
+                    <h3>Modify Environment</h3>
+                    <p>Describe changes in plain English. Claude will interpret and apply them.</p>
+                    <textarea id="change-input" rows="3" placeholder='e.g. "Add 3 more Standard_D4s_v3 VMs" or "Remove the storage account"'></textarea>
+                    <button id="apply-change-btn" class="btn primary">Apply Changes</button>
+                    <div id="change-status" class="status-msg"></div>
 
-                <!-- Change Log -->
-                <h3>Change Log</h3>
-                <ul id="change-log" class="change-log"></ul>
-            </section>
+                    <!-- Change Log -->
+                    <h3>Change Log</h3>
+                    <ul id="change-log" class="change-log"></ul>
+                </section>
+            </div>
+
+            <!-- ==================== PAGE: CONFIGURATION ==================== -->
+            <div id="page-config" class="page-content" style="display:none;">
+
+                <!-- Claude API Key -->
+                <section class="card">
+                    <h2>Claude API Key</h2>
+                    <p>Required for template parsing and change interpretation.</p>
+                    <div class="input-row">
+                        <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+                        <button id="save-key-btn" class="btn primary">Save Key</button>
+                        <button id="clear-key-btn" class="btn secondary" style="display:none;">Clear Key</button>
+                        <button id="test-key-btn" class="btn secondary" style="display:none;">Test Connection</button>
+                    </div>
+                    <div id="key-status" class="status-msg"></div>
+                </section>
+
+                <!-- Skillable API Key -->
+                <section class="card">
+                    <h2>Skillable API Key</h2>
+                    <p>Required for querying running lab instances. Obtain from your Skillable administrator.</p>
+                    <div class="input-row">
+                        <input type="password" id="skillable-key-input" placeholder="Your Skillable API key..." autocomplete="off">
+                        <button id="save-skillable-btn" class="btn primary">Save Key</button>
+                        <button id="clear-skillable-btn" class="btn secondary" style="display:none;">Clear Key</button>
+                        <button id="test-skillable-btn" class="btn secondary" style="display:none;">Test Connection</button>
+                    </div>
+                    <div id="skillable-status" class="status-msg"></div>
+                </section>
+
+                <!-- Connection Summary -->
+                <section class="card">
+                    <h2>Connection Status</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="status-label">Claude API</span>
+                            <span id="claude-conn-status" class="status-badge not-configured">Not Configured</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Skillable API</span>
+                            <span id="skillable-conn-status" class="status-badge not-configured">Not Configured</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ==================== PAGE: LAB INSTANCES ==================== -->
+            <div id="page-labs" class="page-content" style="display:none;">
+
+                <section class="card">
+                    <h2>Running Lab Instances</h2>
+                    <p>Lab instances currently running or saved under your Skillable API key.</p>
+                    <div class="btn-row" style="margin-bottom:1rem;">
+                        <button id="refresh-labs-btn" class="btn primary">Refresh Labs</button>
+                    </div>
+                    <div id="labs-status" class="status-msg"></div>
+
+                    <div id="labs-empty" class="empty-state" style="display:none;">
+                        <p>No running or saved lab instances found.</p>
+                        <p class="text-dim">Make sure your Skillable API key is configured in the Configuration tab.</p>
+                    </div>
+
+                    <div id="labs-table-wrap" class="table-wrap" style="display:none;">
+                        <table id="labs-table">
+                            <thead>
+                                <tr>
+                                    <th>Instance ID</th>
+                                    <th>Lab Profile</th>
+                                    <th>User</th>
+                                    <th>Cloud</th>
+                                    <th>Started</th>
+                                    <th>Expires</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="labs-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
         </main>
 
         <!-- Messages Sidebar -->
@@ -174,19 +254,21 @@
 
     <footer>
         <p>Azure Burn Rate Estimator &mdash; Pricing via <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a></p>
-        <p id="version-info">v1.1.0 &middot; Build 17</p>
+        <p id="version-info">v1.2.0 &middot; Build 18</p>
     </footer>
 
-    <script src="js/apiKey.js?v=17"></script>
-    <script src="js/pricing.js?v=17"></script>
-    <script src="js/parser.js?v=17"></script>
-    <script src="js/environment.js?v=17"></script>
-    <script src="js/calculator.js?v=17"></script>
-    <script src="js/timer.js?v=17"></script>
-    <script src="js/history.js?v=17"></script>
-    <script src="js/messages.js?v=17"></script>
-    <script src="js/chart.js?v=17"></script>
-    <script src="js/changes.js?v=17"></script>
-    <script src="js/app.js?v=17"></script>
+    <script src="js/apiKey.js?v=18"></script>
+    <script src="js/pricing.js?v=18"></script>
+    <script src="js/parser.js?v=18"></script>
+    <script src="js/environment.js?v=18"></script>
+    <script src="js/calculator.js?v=18"></script>
+    <script src="js/timer.js?v=18"></script>
+    <script src="js/history.js?v=18"></script>
+    <script src="js/messages.js?v=18"></script>
+    <script src="js/chart.js?v=18"></script>
+    <script src="js/changes.js?v=18"></script>
+    <script src="js/navigation.js?v=18"></script>
+    <script src="js/skillable.js?v=18"></script>
+    <script src="js/app.js?v=18"></script>
 </body>
 </html>
